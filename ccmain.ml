@@ -1,3 +1,11 @@
+(**
+  * ccmain.ml
+  * Part of Micro-JavaScript Compiler
+  *
+  * 3I018 Compilation
+  * Université Pierre et Marie Curie
+  *
+  *)
 open Cmdliner
 module P = Printf
 
