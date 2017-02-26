@@ -1,23 +1,28 @@
+# Part of microjs in ML project
+#
+# 3I018 Compilation Course
+# Université Pierre et Marie Curie
 
 TAR=tar
 
-SOURCES= utils.ml parseutils.ml ast.ml parser.mly lexer.mll prim.ml kast.ml expander.ml bytecode.ml compiler.ml ccmain.ml
-RESULT= compiler
+#SOURCES= utils.ml parseutils.ml ast.ml \
+#         parser.mly lexer.mll prim.ml \
+#         kast.ml expander.ml bytecode.ml \
+#         compiler.ml ccmain.ml
 
-all: byte-code
+all:
+	eval `opam config env`
+	ocamlbuild -use-ocamlfind -package cmdliner -cflags '-principal' 'ccmain.native'
 
--include OCamlMakefile
+deps:
+	opam update
+	opam install cmdliner
 
-archive: Makefile utils.ml parseutils.ml ast.ml parser.mly lexer.mll TestParser.ml
-	mkdir microjs-${shell date +%F}
-	mkdir microjs-${shell date +%F}/tests
-	cp -f $? microjs-${shell date +%F}
-	cp -f tests/*.js microjs-${shell date +%F}/tests/
-	$(TAR) cvzf microjs-${shell date +%F}.tar.gz microjs-${shell date +%F}
-	rm -rf microjs-${shell date +%F}
+# For giving out to student prefer giving an url to the git project.
+archiveLastest:
+	git archive -o cmicrojsML-${shell git rev-parse HEAD}.zip HEAD
 
-cleanall: clean
-	rm -f *~
-	rm -f testparser
-	rm -f compiler
-	rm -f microjs-*.tar.gz
+clean:
+	ocamlbuild -clean
+
+
