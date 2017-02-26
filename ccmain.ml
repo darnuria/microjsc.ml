@@ -1,88 +1,136 @@
+open Cmdliner
 module P = Printf
-open Utils
-open Parseutils
-open Ast
-open Prim
-open Kast
-open Expander
-open Compiler
-open Bytecode
 
-let result_string s = P.sprintf
-    "\n===========================\n%s\n===========================\n" s
+(*
+type verbosity =
+  | Verbose
+  | Quiet
 
-let abort msg err_code =
-  P.printf "Now quitting\n  ==> %s\n\nBye bye !\n" msg ;
- exit err_code
+let string_of_verbosity = function
+  | Verbose -> "verbose"
+  | Quiet -> "quiet"
+*)
 
 let parse_file filename =
   try
     let in_file = Pervasives.open_in filename in
     let lexbuf = Lexing.from_channel in_file in
     let prog = Parser.program Lexer.token lexbuf in
-    close_in in_file;
-    { prog with filename = filename }
-  with Parse_Exception (msg, pos) ->
-    (P.printf "Parse error: %s\n(%s)\n" msg (string_of_position pos));
-    exit 1
+    Pervasives.close_in in_file;
+    `Ok ({ prog with Ast.filename = filename })
+  with Parseutils.Parse_Exception (msg, pos) ->
+    let pos = (Parseutils.string_of_position pos)
+      in `Error (P.sprintf "Parse error: %s\n(%s)\n" msg pos)
 
-type control_mode =
-  | PARSE_ONLY
-  | PARSE_AND_EXPAND
-  | COMPILE_AND_SHOW_BYTECODE
-  | COMPILE_AND_GENERATE_TARGET
-  | COMPILE_AND_RUN
+let write_target filename code =
+    let out_file = Pervasives.open_out filename in
+    List.iter (fun s -> Pervasives.output_string out_file s) code;
+    Pervasives.close_out out_file
 
-let _ =
-  P.printf "Microjs compiler v0.0.1\n" ;
-  P.printf "-----------------------\n" ;
 
-  let mode = ref COMPILE_AND_GENERATE_TARGET
-  and src_filename = ref "" in
-  Arg.parse [ ("-parse", (Arg.Unit (fun () -> mode := PARSE_ONLY))
-              , "Parse and show parsed program")
-            ; ("-expand", (Arg.Unit (fun () -> mode := PARSE_AND_EXPAND))
-              , "Parse, expand and show kernel abstract syntax tree")
-            ; ("-compile", (Arg.Unit (fun () -> mode := COMPILE_AND_SHOW_BYTECODE))
-              , "Compile and show bytecode")
-            ; ("-gen", (Arg.Unit (fun () -> mode := COMPILE_AND_GENERATE_TARGET))
-              , "Compile and generate target (default mode)")
-            ; ("-run", (Arg.Unit (fun () -> mode := COMPILE_AND_RUN))
-              , "Compile and run program (debug mode)") ]
-    (fun s -> src_filename := s) "Usage:\n compiler [opts] <source_file>\nopts:";
+let compile_prog prog =
+  Expander.expand_prog prog
+  |> Compiler.compile_prog (Prim.init_prim_env ())
 
-  (if !src_filename = "" then
-     abort "No source file..." 0);
+let result_string = P.sprintf
+    "\n===========================\n%s\n===========================\n"
 
-  P.printf "[1] Parsing source file: %s ...\n" !src_filename;
-  let prog = parse_file !src_filename in
-  P.printf "... parsing done.\n";
+let select_action parse compile expand =
+  if parse then
+    (fun prog ->
+       Ast.string_of_program prog
+       |> result_string
+       |> P.sprintf "Parsed program:%s")
+   else if expand then
+    (fun prog ->
+       Expander.expand_prog prog
+       |> Kast.string_of_kprogram
+       |> result_string
+       |> P.sprintf "Kernal Abstract Syntax Tree:%s")
+   else if compile then
+    (fun prog ->
+      compile_prog prog
+      |> Bytecode.string_of_bytecode
+      |> result_string
+      |> P.sprintf "Bytecode:%s")
+   else
+     failwith "Writing to file not implemented!"
+    (* (fun prog ->
+       expand_prog prog
+       |> compile_prog (init_prim_env ())
+       |> write_target filename)
+      *)
 
-  if !mode = PARSE_ONLY
-  then (P.printf "Parsed program:%s"
-          (result_string (string_of_program prog));
-        abort "I could compile, you know..." 0);
+(**
+  * Command line Interface and Entry Point
+  *)
+let cmicrojs parse expand compile filename =
+  let prog = parse_file filename in
+  match prog with
+  | `Ok prog ->
+    if (parse <> compile <> expand) then
+      let action = select_action parse compile expand in
+      `Ok (P.printf "%s" (action prog))
+    else
+      `Error (false, "Compile to bytecode not implemented.")
+  (* `Ok (compile_prog prog) *)
+  | `Error msg -> `Error (false, msg)
 
-  P.printf "[2] Expanding ...\n";
+let file =
+  Arg.(required
+       & pos ~rev:true 0 (some string) None
+       & info [] ~docv:"SOURCE"
+         ~doc:"Micro-JavaScript file(s) to process.")
 
-  let kprog = expand_prog prog in
-  P.printf "... expansion done.\n";
+let parse =
+  Arg.(value & flag & info ["p"; "parse"]
+         ~docv:"PARSE"
+         ~doc:"Parse and show parsed program." )
 
-  if !mode = PARSE_AND_EXPAND
-  then (P.printf "Kernal Abstract Syntax Tree:%s"
-          (result_string (string_of_kprogram kprog));
-        abort "I could compile, you know..." 0);
+let expand =
+  Arg.(value & flag & info ["e"; "expand"]
+         ~docv:"EXPAND"
+         ~doc:"Parse, expand and show kernel abstract syntax tree")
 
-  P.printf "[3] Compiling ...\n" ;
+let compile =
+  Arg.(value & flag & info ["c"; "compile"]
+      ~docv:"COMPILE"
+      ~doc:"Parse, compile and show the compiled code")
 
-  let target = compile_prog (init_prim_env ()) kprog
-  in
+let run =
+  Arg.(value & flag & info ["r"; "run"]
+         ~docv:"RUNNING"
+         ~doc:"Compile and run program (debug mode)")
 
-  P.printf "... compilation done.\n";
+let generate =
+  Arg.(value & flag & info ["g"; "gen"]
+         ~docv:"GENERATE"
+         ~doc:"Compile and generate target (default mode)")
 
-  (if !mode = COMPILE_AND_SHOW_BYTECODE
-   then (P.printf "Bytecode:%s" (result_string (string_of_bytecode target));
-         abort "I could generate the target, you know..." 0));
+let dot_graph =
+  Arg.(value & flag & info ["astDot"]
+         ~docv:"GENERATE"
+         ~doc:"Compile and generate target (default mode)")
 
-  abort "The rest is not implemented yet ..." 0
+let verbosity =
+  let verbose =
+    Arg.info ["v"; "verbose"]
+       ~doc:"Output full process on stdout" in
+  Arg.(value & flag & verbose)
 
+let cmd =
+  (Term.(Term.ret(const cmicrojs $ parse $ expand $ compile $ file))
+  , Term.info "cmicrojs"
+      ~version:"0.0.1"
+      ~doc:"Microjs compiler in Ocaml"
+      ~man:
+        [ `S "DESCRIPTION"
+        ; `P "$(tname) is a compiler of Micro-Javascript language to\
+              NativeVM bytecode."
+        ; `P "BUGS: Report bugs to <frederic dot pechansky at lip6 dot fr>."])
+
+(* See cmicrojs for real entry point *)
+let () =
+  match Term.eval cmd with
+  |  `Error _ -> exit 1
+  | _ -> exit 0
