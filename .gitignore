@@ -1,0 +1,33 @@
+_build
+build
+compiler
+microjsc.native
+microjsc.byte
+microjsc
+
+*.cmi
+*.cmo
+*.cmx
+*.cma
+*.cmx
+
+*.annot
+*.cmo
+*.cma
+*.cmi
+*.a
+*.o
+*.cmx
+*.cmxs
+*.cmxa
+
+# ocamlbuild working directory
+_build/
+
+# ocamlbuild targets
+*.byte
+*.native
+
+# oasis generated files
+setup.data
+setup.log
