@@ -1,7 +1,15 @@
-# Part of microjs in ML project
+# Makefile
+# Part of Micro-JavaScript compiler in ML project
+# at Université Pierre et Marie Curie
+#
+# Copyright 2016 - 2017
 #
 # 3I018 Compilation Course
-# Université Pierre et Marie Curie
+# Teachers:
+#   - Frederic Peschanski
+#   - Lieu Choun Tong
+#   - Chailloux Emmanuel
+#
 
 TAR=tar
 

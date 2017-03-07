@@ -1,31 +1,47 @@
 
 %{
-(* Parsing of micro-JavaScript use Ocamlyacc *)
-  open Parseutils
-  open Ast
-  open Lexing
+(*
+ * parser.mly
+ *
+ * Parser of Micro-JavaScript written with ocamlyacc:
+ * consume tokens for making the first Abstract syntax tree
+ * (in ast.ml)
+ *
+ * Part of Micro-JavaScript compiler in ML project
+ * at Université Pierre et Marie Curie
+ *
+ * Copyright 2016 - 2017
+ *
+ * 3I018 Compilation Course
+ * Teachers:
+ *   - Frederic Peschanski
+ *   - Lieu Choun Tong
+ *   - Chailloux Emmanuel
+ *)
+
 
   let current_pos () =
-    make_position (Parsing.symbol_start_pos ())
+    Parseutils.make_position (Parsing.symbol_start_pos ())
                   (Parsing.symbol_end_pos ())
 
 (* Called by the parser function on error *)
   let parse_error s =
-    Printf.printf "Error at line %d:\n ==> "
-                  (Parsing.symbol_start_pos ()).pos_lnum;
-    print_endline s;
-    flush stdout
-
+    let pos = Parsing.symbol_start_pos () in
+    Printf.printf "Error at line %d:\n ==> %s"
+                  Lexing.(pos.pos_lnum) s;
+    Pervasives.flush Pervasives.stdout
 %}
 
 /* (* reserved words *) */
-
 %token FUNCTION RETURN IF VAR ELSE IN FOR WHILE
 %token NULL LET
 
+/* (* Values *) */
 %token <int> INT
 %token <bool> BOOL
 %token <string> IDENTIFIER
+
+/* (* Operators *) */
 %token PLUS MINUS TIMES DIV
 %token LPAREN RPAREN
 %token INF INFEQ SUP SUPEQ EQ EQEQ
@@ -35,7 +51,6 @@
 %token COMMA SEMICOL LCURLY RCURLY LBRACKET RBRACKET
 
 /* (* expressions *) */
-
 %left PLUS MINUS    /* lowest precedence */
 %left TIMES DIV     /* medium precedence */
 %left UMINUS        /* highest precedence */
@@ -47,12 +62,12 @@
 %%
 
 program:
-  | statements  { { filename = ""; body = $1 } }
+  | statements  { Ast.({ filename = ""; body = $1 }) }
 ;
 
 statements:
   | /* empty */                    { [] }
-  | statement separator statements { $1::$3 }
+  | statement separator statements { $1 :: $3 }
   | block statements               { $1 }
 ;
 
@@ -61,25 +76,25 @@ separator: SEMICOL {}
 
 statement:
   | IDENTIFIER LBRACKET expr RBRACKET EQ expr
-    { ArrayAssign ($1, $3, $6, current_pos ()) }
+    { Ast.ArrayAssign ($1, $3, $6, current_pos ()) }
   | IDENTIFIER EQ expr
-    { Assign ($1, $3, current_pos ()) }
+    { Ast.Assign ($1, $3, current_pos ()) }
   | expr
-    { VoidExpr ($1, current_pos ()) }
+    { Ast.VoidExpr ($1, current_pos ()) }
   | WHILE LPAREN expr RPAREN block
-    { While($3, $5, current_pos ()) }
+    { Ast.While($3, $5, current_pos ()) }
   | FOR LPAREN IDENTIFIER IN expr RPAREN block
-    { ForIn($3, $5, $7, current_pos ()) }
+    { Ast.ForIn($3, $5, $7, current_pos ()) }
   | IF LPAREN expr RPAREN block ELSE block
-    { If($3, $5, $7, current_pos ()) }
+    { Ast.If($3, $5, $7, current_pos ()) }
   | FUNCTION IDENTIFIER LPAREN parameters RPAREN block
-    { Fundef($2, $4, $6, current_pos ()) }
+    { Ast.Fundef($2, $4, $6, current_pos ()) }
   | VAR IDENTIFIER EQ expr
-    { Var($2, $4, current_pos ()) }
+    { Ast.Var($2, $4, current_pos ()) }
   | LET IDENTIFIER EQ expr
-    { Let($2, $4, current_pos ()) }
+    { Ast.Let($2, $4, current_pos ()) }
   | RETURN expr
-    { Return($2, current_pos ()) }
+    { Ast.Return($2, current_pos ()) }
 ;
 
 block:
@@ -94,37 +109,37 @@ parameters:
 
 expr:
   | INT
-    { IntConst ($1, current_pos ()) }
+    { Ast.IntConst ($1, current_pos ()) }
   | BOOL
-    { BoolConst ($1, current_pos ()) }
+    { Ast.BoolConst ($1, current_pos ()) }
   | expr LBRACKET expr RBRACKET
-    { ArrayRef($1, $3, current_pos ()) }
+    { Ast.ArrayRef($1, $3, current_pos ()) }
   | expr LPAREN arguments RPAREN
-    { Funcall($1, $3, current_pos ()) }
+    { Ast.Funcall($1, $3, current_pos ()) }
   | IDENTIFIER
-    { EVar ($1, current_pos ()) }
+    { Ast.EVar ($1, current_pos ()) }
   | LPAREN expr RPAREN
     { $2 }
   | expr PLUS expr
-    { BinOp(Add, $1, $3, current_pos ()) }
+    { Ast.(BinOp(Add, $1, $3, current_pos ())) }
   | expr MINUS expr
-    { BinOp(Sub, $1, $3, current_pos ()) }
+    { Ast.(BinOp(Sub, $1, $3, current_pos ())) }
   | expr TIMES expr
-    { BinOp(Mult, $1, $3, current_pos ()) }
+    { Ast.(BinOp(Mult, $1, $3, current_pos ())) }
   | expr DIV expr
-    { BinOp(Div, $1, $3, current_pos ()) }
+    { Ast.(BinOp(Div, $1, $3, current_pos ())) }
   | expr EQEQ expr
-    { BinOp(BEq, $1, $3, current_pos ()) }
+    { Ast.(BinOp(BEq, $1, $3, current_pos ())) }
   | expr INF expr
-    { BinOp(BInf, $1, $3, current_pos ()) }
+    { Ast.(BinOp(BInf, $1, $3, current_pos ())) }
   | expr INFEQ expr
-    { BinOp(BInfeq, $1, $3, current_pos ()) }
+    { Ast.(BinOp(BInfeq, $1, $3, current_pos ())) }
   | expr SUP expr
-    { BinOp(BSup, $1, $3, current_pos ()) }
+    { Ast.(BinOp(BSup, $1, $3, current_pos ())) }
   | expr SUPEQ expr
-    { BinOp(BSupeq, $1, $3, current_pos ()) }
+    { Ast.(BinOp(BSupeq, $1, $3, current_pos ())) }
   | LBRACKET arguments RBRACKET
-    { ArrayLiteral($2, current_pos ()) }
+    { Ast.(ArrayLiteral($2, current_pos ())) }
   ;
 
 arguments:

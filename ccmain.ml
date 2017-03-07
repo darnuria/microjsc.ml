@@ -1,11 +1,21 @@
-(**
-  * ccmain.ml
-  * Part of Micro-JavaScript Compiler
-  *
-  * 3I018 Compilation
-  * Université Pierre et Marie Curie
-  *
-  *)
+(*
+ * ccmain.ml
+ *
+ * Entry point of the compiler
+ * management of the command line with CmdLiner module
+ * Documentation of CmdLiner: http://erratique.ch/software/cmdliner/doc/Cmdliner
+ *
+ * Part of Micro-JavaScript compiler in ML project
+ * at Université Pierre et Marie Curie
+ *
+ * Copyright 2016 - 2017
+ *
+ * 3I018 Compilation Course:
+ * Teachers:
+ *   - Frederic Peschanski
+ *   - Lieu Choun Tong
+ *   - Chailloux Emmanuel
+ *)
 open Cmdliner
 module P = Printf
 

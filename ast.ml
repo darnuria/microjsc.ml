@@ -1,7 +1,24 @@
+(*
+ * ast.ml
+ *
+ * Abstract syntax tree of Micro-JavaScript
+ * rich representation of the syntax will be reduced
+ * to a kernel abstract syntax tree(kast.ml)
+ * by Expand module(expand.ml)
+ *
+ * Part of Micro-JavaScript compiler in ML project
+ * at Université Pierre et Marie Curie
+ *
+ * Copyright 2016 - 2017
+ *
+ * 3I018 Compilation Course
+ * Teachers:
+ *   - Frederic Peschanski
+ *   - Lieu Choun Tong
+ *   - Chailloux Emmanuel
+ *)
 
-open Printf
 open Parseutils
-open Utils
 
 type program = { filename: string; body: statements }
 
@@ -91,15 +108,16 @@ let indent_string level =
   String.make (level * indent_factor) ' '
 
 let rec string_of_program { body = instrs ; _ } : string =
-  Utils.string_join ";\n" (List.map (string_of_statement 0) instrs)
+  String.concat ";\n" (List.map (string_of_statement 0) instrs)
 
 and string_of_statements indent instrs =
-  Utils.string_join ";\n" (List.map (string_of_statement indent) instrs)
+  String.concat ";\n" (List.map (string_of_statement indent) instrs)
 
 and string_of_statement indent instr =
+  let open Printf in
   match instr with
   | Fundef (fvar, params, body, _) ->
-    let params = (Utils.string_join ", " params) in
+    let params = (String.concat ", " params) in
     let body = (string_of_statements (indent + 1) body)
     in sprintf "%sfunction %s(%s) {\n%s%s}"
              (indent_string indent)
@@ -140,6 +158,7 @@ and string_of_statement indent instr =
   | _ -> failwith "Not yet implemented (string_of_statement)"
 
 and string_of_expr indent expr =
+  let open Printf in
   match expr with
   | IntConst (n, _)      -> sprintf "%s%d" (indent_string indent) n
   | BoolConst (true, _)  -> sprintf "%strue" (indent_string indent)
