@@ -21,6 +21,12 @@ or
 
 `make deps`
 
+### Virtual Machine to run bytecode
+
+Available on the [3I018
+course](http://www-licence.ufr-info-p6.jussieu.fr/lmd/licence/2016/ue/3I018-2017fev/Cours/programmes/)
+file nativevm.tar.gz website under GPLv2 license
+
 ## Building
 
 `make`
